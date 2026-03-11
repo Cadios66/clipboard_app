@@ -1,0 +1,75 @@
+from tkinter import colorchooser, messagebox
+import os
+import colorsys
+from tkinter import *
+import matplotlib.colors as mc
+import colorsys
+import config
+
+class setting:
+    def __init__(self, main_window):
+        self.main_window = main_window
+        self.window = None
+    def color_choose(self):
+        color = colorchooser.askcolor()
+        if color and color[1]:
+            config.background_color = color[1]
+            self.main_window.configure(bg = config.background_color)
+            from gui import update_button_colors
+            update_button_colors(self)
+
+    def quit_app(self):
+        self.main_window.quit()
+
+    def auto_delete(self):
+        if not config.folder_to_save:
+            messagebox.showwarning("Перед началом работы приложения, выберите папку для сохранения")
+        else:
+            messagebox.showwarning("привет")
+
+    def lighten_color(self, amount=0.5):
+        color = config.background_color
+
+        if not color:
+            return "#808080"
+
+        if isinstance(color, str):
+            if color.startswith('#'):
+                hex_color = color.lstrip('#')
+            else:
+                hex_color = color
+        else:
+            return "#808080"
+        if len(hex_color) < 6:
+            return "#808080"
+
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+        except ValueError:
+            return "#808080"
+
+        r_norm = r / 255.0
+        g_norm = g / 255.0
+        b_norm = b / 255.0
+        h, l, s = colorsys.rgb_to_hls(r_norm, g_norm, b_norm)
+
+        if amount > 0:
+            new_l = min(l + amount, 1.0)
+        else:
+            new_l = max(l + amount, 0.0)
+
+        new_r_norm, new_g_norm, new_b_norm = colorsys.hls_to_rgb(h, new_l, s)
+
+        new_r = int(new_r_norm * 255)
+        new_g = int(new_g_norm * 255)
+        new_b = int(new_b_norm * 255)
+
+        return f'#{new_r:02x}{new_g:02x}{new_b:02x}'.upper()
+
+        rgb = mc.to_rgb(c)
+        h, l, s = colorsys.rgb_to_hls(*rgb)
+        new_l = 1 - amount * (1 - l)
+        new_rgb = colorsys.hls_to_rgb(h, new_l, s)
+        return mc.to_hex(new_rgb)
