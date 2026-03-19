@@ -5,7 +5,6 @@ from tkinter import *
 import matplotlib.colors as mc
 import colorsys
 import config
-
 class setting:
     def __init__(self, main_window):
         self.main_window = main_window
@@ -17,6 +16,12 @@ class setting:
             self.main_window.configure(bg = config.background_color)
             from gui import update_button_colors
             update_button_colors(self)
+        file_path = os.path.join(config.root_folder, 'color_theme_choice.txt')
+        try:
+            with open(file_path, 'w') as file:
+                file.write(config.background_color)
+        except Exception as e:
+            print(f"Ошибка: {e}")
 
     def quit_app(self):
         self.main_window.quit()
