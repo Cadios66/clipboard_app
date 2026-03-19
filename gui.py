@@ -4,7 +4,6 @@ from tkinter import ttk
 from tkinter import *
 import customtkinter
 import config
-import settings
 from monitoring_clipboard import start_monitoring
 from filters import formated_text, show_links, show_text, show_images
 import tkinter.filedialog as fd
@@ -57,6 +56,23 @@ choices = {
         "Все": lambda: formated_text(list_of_text), "Ссылки": lambda: show_links(list_of_text),
         "Текст": lambda: show_text(list_of_text),"Изображения": lambda: show_images(list_of_text)}
 
+def load_color():
+    file_path = os.path.join(config.root_folder, 'color_theme_choice.txt')
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as file:
+                temp_color = file.read()
+                if temp_color:
+                    config.background_color = temp_color
+                    app.configure(bg=config.background_color)
+                    update_button_colors(main_wind)
+                    print(config.background_color)
+        else:
+            print("Папка с файлом не найдена")
+    except Exception as e:
+        print(f"Ошибка {e}")
+
+
 def selected_sort(choice):
     if choice in choices:
         choices[choice]()
@@ -78,10 +94,11 @@ def update_button_colors(wind_object):
             text_color = wind_object.lighten_color(-0.4))
             name.configure(bg = config.background_color, fg = wind_object.lighten_color(-0.3))
 def setup():
-    global app, list_of_text, combobox, stop_button, clipboard_thread, open_folder_btn, name
+    global app, list_of_text, combobox, stop_button, clipboard_thread, open_folder_btn, name, main_wind
     app = tk.Tk()
     app.title("Копировальщик текста")
     app.geometry("650x650")
+    load_color()
 
     app.update_idletasks()
     s = app.geometry()
@@ -129,8 +146,8 @@ def setup():
         text_color='black'
     )
     stop_button.pack(pady=10)
-
     load_folder()
+
     main_wind = setting(app)
 
 
@@ -155,6 +172,9 @@ def setup():
     file_menu.add_command(label="Exit", command= main_wind.quit_app)
     main_menu.add_cascade(label = "Settings", menu=file_menu)
     app.config(menu= main_menu)
+
+    if config.background_color:
+        load_color()
 
     clipboard_thread = start_monitoring(app, selected_sort, combobox)
     app.protocol("WM_DELETE_WINDOW", close_command)
