@@ -1,4 +1,5 @@
 import os.path
+import shutil
 import tkinter as tk
 from tkinter import ttk
 from tkinter import *
@@ -11,7 +12,7 @@ from settings import setting
 import customtkinter as ctk
 import json
 from datetime import datetime, timedelta
-import tkinter.messagebox as mb
+import tkinter.messagebox as mg
 
 def save_auto_delete_settings(period):
     file_path = os.path.join(config.root_folder, 'settings.json')
@@ -28,7 +29,7 @@ def save_auto_delete_settings(period):
         with open(file_path, 'w') as f:
             json.dump(settings, f, indent = 4)
         print(f"Установлено автоудаление: {period}")
-        mb.showinfo("Автоудаление", f"Установлено автоудаление: {period}")
+        mg.showinfo("Автоудаление", f"Установлено автоудаление: {period}")
     except Exception as e:
         print(f"Ошибка сохранения настроек: {e}")
 
@@ -42,9 +43,15 @@ def check_auto_delete():
         with open(file_path, 'r') as f:
             settings = json.load(f)
 
-        period = settings["period"]
-        start_date = datetime.fromisoformat(settings["start_date"])
+        auto = settings.get("auto_delete")
+        if not auto:
+            return False
+
+        period = auto.get("period")
+        start_date = datetime.fromisoformat(auto.get("start_date"))
         now = datetime.now()
+
+        need_delete = False
         if period == "Неделя":
             return now >= start_date + timedelta(weeks=1)
         elif period == "Месяц":
@@ -52,7 +59,22 @@ def check_auto_delete():
         elif period == "Год":
             return now >= start_date + timedelta(days=365)
 
-        return False
+        if need_delete:
+            delete_path = config.folder_path
+            if delete_path and os.path.exists(delete_path):
+                for folders in os.listdir(delete_path):
+                    item_path = os.path.join(delete_path, folders)
+                    if os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+
+            auto["start_date"] = now.isoformat()
+            settings["auto_delete"] = auto
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, indent=4, ensure_ascii=False)
+
+            mg.showinfo("Автоудаление", f"Данные очищены. Новый отсчёт: {period}")
+            return True
     except Exception as e:
         print(f"Ошибка проверки автоудаления: {e}")
         return False
@@ -86,21 +108,25 @@ def open_file():
         save_folder()
 
 def save_folder():
-    file_path = os.path.join(config.root_folder, 'folder_choice.txt')
+    file_path = os.path.join(config.root_folder, 'settings.json')
     try:
-        with open(file_path, 'w') as file:
-            file.write(config.folder_path)
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                settings = json.load(f)
+        else:
+            settings = {}
+        settings['folder_path'] = config.folder_path
+        with open(file_path, 'w') as f:
+            json.dump(settings, f)
     except Exception as e:
         print(f"Ошибка: {e}")
 def load_folder():
-    if check_auto_delete():
-        print("автоудаление")
-        os.remove(os.path.join(config.root_folder, 'auto_delete_settings.json'))
-    file_path = os.path.join(config.root_folder, 'folder_choice.txt')
+    file_path = os.path.join(config.root_folder, 'settings.json')
     try:
         if os.path.exists(file_path):
-            with open(file_path, 'r') as file:
-                temp_folder = file.read()
+            with open(file_path, 'r') as f:
+                settings = json.load(f)
+                temp_folder = settings.get('folder_path')
                 if temp_folder and os.path.exists(temp_folder):
                     config.folder_path = temp_folder
                     config.folder_to_save = os.path.dirname(temp_folder)
@@ -199,6 +225,17 @@ def setup():
     )
     stop_button.pack(pady=10)
     load_folder()
+
+    if check_auto_delete():
+        delete_path = config.folder_path
+        try:
+            for folders in os.listdir(delete_path):
+                item_path = os.path.join(delete_path, folders)
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+            mg.showinfo("Автоудаление", "Данные были очищены")
+        except Exception as e:
+            mg.showinfo("Автоудаление", f"Ошибка: {e}")
 
     main_wind = setting(app)
 
