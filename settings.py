@@ -1,10 +1,9 @@
-from tkinter import colorchooser, messagebox
+from tkinter import colorchooser
 import os
 import colorsys
-from tkinter import *
-import matplotlib.colors as mc
-import colorsys
 import config
+import json
+
 class setting:
     def __init__(self, main_window):
         self.main_window = main_window
@@ -16,21 +15,11 @@ class setting:
             self.main_window.configure(bg = config.background_color)
             from gui import update_button_colors
             update_button_colors(self)
-        file_path = os.path.join(config.root_folder, 'color_theme_choice.txt')
-        try:
-            with open(file_path, 'w') as file:
-                file.write(config.background_color)
-        except Exception as e:
-            print(f"Ошибка: {e}")
+        with open(os.path.join(config.root_folder, 'settings.json'), 'w') as f:
+            json.dump({'bg_color': config.background_color}, f)
 
     def quit_app(self):
         self.main_window.quit()
-
-    def auto_delete(self):
-        if not config.folder_to_save:
-            messagebox.showwarning("Перед началом работы приложения, выберите папку для сохранения")
-        else:
-            messagebox.showwarning("привет")
 
     def lighten_color(self, amount=0.5):
         color = config.background_color
@@ -73,8 +62,3 @@ class setting:
 
         return f'#{new_r:02x}{new_g:02x}{new_b:02x}'.upper()
 
-        rgb = mc.to_rgb(c)
-        h, l, s = colorsys.rgb_to_hls(*rgb)
-        new_l = 1 - amount * (1 - l)
-        new_rgb = colorsys.hls_to_rgb(h, new_l, s)
-        return mc.to_hex(new_rgb)
