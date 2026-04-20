@@ -15,8 +15,18 @@ class setting:
             self.main_window.configure(bg = config.background_color)
             from gui import update_button_colors
             update_button_colors(self)
-        with open(os.path.join(config.root_folder, 'settings.json'), 'w') as f:
-            json.dump({'bg_color': config.background_color}, f)
+        file_path = os.path.join(config.root_folder, 'settings.json')
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    settings = json.load(f)
+            else:
+                settings = {}
+            settings['bg_color'] = config.background_color
+            with open(file_path, 'w') as f:
+                json.dump(settings, f)
+        except Exception as e:
+            print(f"Ошибка: {e}")
 
     def quit_app(self):
         self.main_window.quit()
