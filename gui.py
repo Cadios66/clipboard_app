@@ -14,14 +14,19 @@ from datetime import datetime, timedelta
 import tkinter.messagebox as mb
 
 def save_auto_delete_settings(period):
-    settings = {
-        "period": period,
-        "start_date": datetime.now().isoformat()
-    }
-    file_path = os.path.join(config.root_folder, 'auto_delete_settings.json')
+    file_path = os.path.join(config.root_folder, 'settings.json')
     try:
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                settings = json.load(f)
+        else:
+            settings = {}
+        settings["auto_delete"] = {
+            "period": period,
+            "start_date": datetime.now().isoformat()}
+
         with open(file_path, 'w') as f:
-            json.dump(settings, f)
+            json.dump(settings, f, indent = 4)
         print(f"Установлено автоудаление: {period}")
         mb.showinfo("Автоудаление", f"Установлено автоудаление: {period}")
     except Exception as e:
@@ -29,7 +34,7 @@ def save_auto_delete_settings(period):
 
 
 def check_auto_delete():
-    file_path = os.path.join(config.root_folder, 'auto_delete_settings.json')
+    file_path = os.path.join(config.root_folder, 'settings.json')
     if not os.path.exists(file_path):
         return False
 
@@ -108,18 +113,15 @@ choices = {
         "Текст": lambda: show_text(list_of_text),"Изображения": lambda: show_images(list_of_text)}
 
 def load_color():
-    file_path = os.path.join(config.root_folder, 'color_theme_choice.txt')
+    file_path = os.path.join(config.root_folder, 'settings.json')
     try:
         if os.path.exists(file_path):
-            with open(file_path, 'r') as file:
-                temp_color = file.read()
-                if temp_color:
-                    config.background_color = temp_color
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                config.background_color = data.get('bg_color')
+                if config.background_color:
                     app.configure(bg=config.background_color)
                     update_button_colors(main_wind)
-                    print(config.background_color)
-        else:
-            print("Папка с файлом не найдена")
     except Exception as e:
         print(f"Ошибка {e}")
 
