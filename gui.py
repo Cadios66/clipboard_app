@@ -53,11 +53,11 @@ def check_auto_delete():
 
         need_delete = False
         if period == "Неделя":
-            return now >= start_date + timedelta(weeks=1)
+            need_delete = now >= start_date + timedelta(weeks=1)
         elif period == "Месяц":
-            return now >= start_date + timedelta(days=30)
+            need_delete = now >= start_date + timedelta(days=30)
         elif period == "Год":
-            return now >= start_date + timedelta(days=365)
+            need_delete = now >= start_date + timedelta(days=365)
 
         if need_delete:
             delete_path = config.folder_path
@@ -66,7 +66,6 @@ def check_auto_delete():
                     item_path = os.path.join(delete_path, folders)
                     if os.path.isdir(item_path):
                         shutil.rmtree(item_path)
-
             auto["start_date"] = now.isoformat()
             settings["auto_delete"] = auto
 
@@ -75,6 +74,8 @@ def check_auto_delete():
 
             mg.showinfo("Автоудаление", f"Данные очищены. Новый отсчёт: {period}")
             return True
+
+        return False
     except Exception as e:
         print(f"Ошибка проверки автоудаления: {e}")
         return False
