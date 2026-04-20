@@ -9,6 +9,54 @@ from filters import formated_text, show_links, show_text, show_images
 import tkinter.filedialog as fd
 from settings import setting
 import customtkinter as ctk
+import json
+from datetime import datetime, timedelta
+import tkinter.messagebox as mb
+
+def save_auto_delete_settings(period):
+    settings = {
+        "period": period,
+        "start_date": datetime.now().isoformat()
+    }
+    file_path = os.path.join(config.root_folder, 'auto_delete_settings.json')
+    try:
+        with open(file_path, 'w') as f:
+            json.dump(settings, f)
+        print(f"Установлено автоудаление: {period}")
+        mb.showinfo("Автоудаление", f"Установлено автоудаление: {period}")
+    except Exception as e:
+        print(f"Ошибка сохранения настроек: {e}")
+
+
+def check_auto_delete():
+    file_path = os.path.join(config.root_folder, 'auto_delete_settings.json')
+    if not os.path.exists(file_path):
+        return False
+
+    try:
+        with open(file_path, 'r') as f:
+            settings = json.load(f)
+
+        period = settings["period"]
+        start_date = datetime.fromisoformat(settings["start_date"])
+        now = datetime.now()
+        if period == "Неделя":
+            return now >= start_date + timedelta(weeks=1)
+        elif period == "Месяц":
+            return now >= start_date + timedelta(days=30)
+        elif period == "Год":
+            return now >= start_date + timedelta(days=365)
+
+        return False
+    except Exception as e:
+        print(f"Ошибка проверки автоудаления: {e}")
+        return False
+
+
+def auto_delete_callback(period):
+    save_auto_delete_settings(period)
+    print(f"Настройки сохранены: удаление через {period.lower()}")
+
 
 def stop_command():
     if config.monitoring:
@@ -40,6 +88,9 @@ def save_folder():
     except Exception as e:
         print(f"Ошибка: {e}")
 def load_folder():
+    if check_auto_delete():
+        print("автоудаление")
+        os.remove(os.path.join(config.root_folder, 'auto_delete_settings.json'))
     file_path = os.path.join(config.root_folder, 'folder_choice.txt')
     try:
         if os.path.exists(file_path):
@@ -76,7 +127,6 @@ def load_color():
 def selected_sort(choice):
     if choice in choices:
         choices[choice]()
-
 def update_button_colors(wind_object):
     if config.background_color and wind_object:
         light_color = wind_object.lighten_color(0.2)
@@ -164,14 +214,22 @@ def setup():
     open_folder_btn.pack(pady=10)
 
 
+
     main_menu = Menu()
     file_menu = Menu()
-    file_menu.add_command(label = "Color theme", command= main_wind.color_choose)
-    file_menu.add_command(label="Delete all")
+    settings_menu = Menu()
+
+    file_menu.add_command(label = "Цветовая тема", command= main_wind.color_choose)
+    settings_menu.add_command(label="Неделя", command=lambda: auto_delete_callback("Неделя"))
+    settings_menu.add_command(label="Месяц", command=lambda: auto_delete_callback("Месяц"))
+    settings_menu.add_command(label="Год", command=lambda: auto_delete_callback("Год"))
+    file_menu.add_cascade(label="Настройки автоудаления", menu = settings_menu)
+
     file_menu.add_separator()
-    file_menu.add_command(label="Exit", command= main_wind.quit_app)
-    main_menu.add_cascade(label = "Settings", menu=file_menu)
+    file_menu.add_command(label="Выход", command= main_wind.quit_app)
+    main_menu.add_cascade(label = "Настройки", menu=file_menu)
     app.config(menu= main_menu)
+
 
     if config.background_color:
         load_color()
