@@ -5,6 +5,7 @@ from tkinter import ttk
 from tkinter import *
 import customtkinter
 import config
+import filters
 from monitoring_clipboard import start_monitoring
 from filters import formated_text, show_links, show_text, show_images
 import tkinter.filedialog as fd
@@ -146,7 +147,7 @@ def load_color():
             with open(file_path, 'r') as f:
                 data = json.load(f)
                 config.background_color = data.get('bg_color')
-                if config.background_color:
+                if config.background_color and 'main_wind' in globals() and main_wind:
                     app.configure(bg=config.background_color)
                     update_button_colors(main_wind)
     except Exception as e:
@@ -168,15 +169,24 @@ def update_button_colors(wind_object):
             combobox.configure(fg_color=light_color, border_color = dark_color,
                                button_color = dark_color, button_hover_color = wind_object.lighten_color(-0.3),
                                dropdown_fg_color = wind_object.lighten_color(0.2), dropdown_hover_color = light_color,
-                               dropdown_text_color = wind_object.lighten_color(-0.3))
+                               dropdown_text_color = wind_object.lighten_color(-0.3)),
+            date_combobox.configure(fg_color=light_color, border_color=dark_color,
+                               button_color=dark_color, button_hover_color=wind_object.lighten_color(-0.3),
+                               dropdown_fg_color=wind_object.lighten_color(0.2), dropdown_hover_color=light_color,
+                               dropdown_text_color=wind_object.lighten_color(-0.3))
             list_of_text.configure(fg_color = wind_object.lighten_color(0.2), border_color=dark_color,
             text_color = wind_object.lighten_color(-0.4))
             name.configure(bg = config.background_color, fg = wind_object.lighten_color(-0.3))
+            word_filter.configure(fg_color=light_color, placeholder_text_color =wind_object.lighten_color(-0.5),
+                                  border_color=dark_color)
+            find_words_btn.configure(fg_color=dark_color, hover_color= wind_object.lighten_color(-0.3))
 def setup():
-    global app, list_of_text, combobox, stop_button, clipboard_thread, open_folder_btn, name, main_wind
+    global app, list_of_text, word_filter, date_combobox, combobox, stop_button, \
+        clipboard_thread, open_folder_btn, name, main_wind, find_words_btn
     app = tk.Tk()
-    app.title("Копировальщик текста")
+    app.title("Буфер обмена")
     app.geometry("650x650")
+    main_wind = setting(app)
     load_color()
 
     app.update_idletasks()
@@ -193,6 +203,44 @@ def setup():
     name = tk.Label(app, text = "Это программа для сохранения ваших скопированных данных",
              font = ('Comic Sans MS', 12), fg = 'black')
     name.pack()
+
+    combobox_frame = ctk.CTkFrame(app, fg_color="transparent")
+    combobox_frame.pack(padx=10, fill='x', pady=5)
+
+    type_frame = ctk.CTkFrame(combobox_frame, fg_color="transparent")
+    type_frame.pack(side="left", padx=5)
+
+    ctk.CTkLabel(type_frame, text="Типы данных", font=('Comic Sans MS', 13), anchor="w").pack(fill='x')
+    combobox = ctk.CTkComboBox(type_frame, values=list(choices.keys()), command=selected_sort,
+                               font=('Comic Sans MS', 15), dropdown_font=('Comic Sans MS', 13), state="readonly",
+                               width=150)
+    combobox.pack()
+    combobox.set("Все")
+
+    date_frame = ctk.CTkFrame(combobox_frame, fg_color="transparent")
+    date_frame.pack(side="left", padx=5)
+
+    ctk.CTkLabel(date_frame, text="Дата", font=('Comic Sans MS', 13), anchor="w").pack(fill='x')
+    date_combobox = ctk.CTkComboBox(date_frame, values=filters.date_filter(), command=selected_sort,
+                                    font=('Comic Sans MS', 15), dropdown_font=('Comic Sans MS', 13), state="readonly",
+                                    width=150)
+    date_combobox.pack()
+    date_combobox.set("Все")
+
+    search_frame = ctk.CTkFrame(combobox_frame, fg_color="transparent")
+    search_frame.pack(side="left", padx=5)
+    ctk.CTkLabel(search_frame, text="", font=('Comic Sans MS', 13)).pack(fill='x')
+    input_frame = ctk.CTkFrame(search_frame, fg_color="transparent")
+    input_frame.pack()
+
+    word_filter = ctk.CTkEntry(input_frame, width=250, height=30, placeholder_text= "Поиск",
+                               font=('Comic Sans MS', 13))
+    word_filter.pack(side='left', padx=(0, 5))
+
+    find_words_btn = ctk.CTkButton(input_frame, text="🔍", height=30, width=30,
+                                   font=('Comic Sans MS', 13))
+    find_words_btn.pack()
+
     list_of_text = customtkinter.CTkTextbox(
         master=app,
         width=80,
@@ -205,11 +253,6 @@ def setup():
         fg_color='white'
     )
     list_of_text.pack(pady=10, padx=10, fill = tk.BOTH, expand=True)
-
-    combobox = ctk.CTkComboBox(app, values = list(choices.keys()),command=selected_sort,
-                               font = ('Comic Sans MS', 15), dropdown_font = ('Comic Sans MS', 13))
-    combobox.pack(pady=20)
-    combobox.set("Все")
 
     stop_button = customtkinter.CTkButton(
         master=app,
@@ -234,11 +277,9 @@ def setup():
                 item_path = os.path.join(delete_path, folders)
                 if os.path.isdir(item_path):
                     shutil.rmtree(item_path)
-            mg.showinfo("Автоудаление", "Данные были очищены")
         except Exception as e:
             mg.showinfo("Автоудаление", f"Ошибка: {e}")
 
-    main_wind = setting(app)
 
 
     open_folder_btn = customtkinter.CTkButton(
