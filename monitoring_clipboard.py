@@ -12,6 +12,9 @@ import config
 import os
 from tkinter import messagebox
 
+import filters
+
+
 def shrink_the_image(image, filename, target):
     min_quality, max_quality = 25, 96
     Qacc = -1
@@ -55,18 +58,24 @@ def check_clipboard(app, selected_sort, combobox):
     current_choice = combobox.get()
     last_image_hash = None
     folder_exists = False
+
     while not config.stop:
         if config.monitoring:
             img = ImageGrab.grabclipboard()
             if isinstance(img, Image.Image):
+                if config.stop or not config.monitoring:
+                    continue
+
                 try:
                     img_byte_arr = io.BytesIO()
                     img.save(img_byte_arr, format='PNG')
                     img_bytes = img_byte_arr.getvalue()
-
                     current_hash = hashlib.md5(img_bytes).hexdigest()
 
                     if current_hash != last_image_hash:
+                        if config.stop or not config.monitoring:
+                            continue
+
                         if not folder_exists:
                             current_folder = create_folder_for_days()
                             if not current_folder:
@@ -74,12 +83,18 @@ def check_clipboard(app, selected_sort, combobox):
                                 time.sleep(1)
                                 continue
                             folder_exists = True
-                        config.copied_things.append(img)
 
+                        if config.stop or not config.monitoring:
+                            continue
+
+                        config.copied_things.append(img)
                         name_of_image = f"image_{datetime.now().hour}-{datetime.now().minute}-{datetime.now().second}.png"
                         full_path = os.path.join(current_folder, name_of_image)
                         shrink_the_image(img, full_path, 1000000)
-                        app.after(0, current_choice)
+
+                        if not config.stop:
+                            app.after(0, current_choice)
+
                         last_image_hash = current_hash
                         last_clipboard = ""
                         print(f"Добавлено новое изображение: {img.size}")
@@ -90,8 +105,13 @@ def check_clipboard(app, selected_sort, combobox):
                 try:
                     current_clipboard = app.clipboard_get()
                     if current_clipboard != last_clipboard and current_clipboard:
+                        if config.stop or not config.monitoring:
+                            continue
+
                         if (not config.copied_things or
-                                not isinstance(config.copied_things[-1], str) or config.copied_things[-1] != current_clipboard):
+                                not isinstance(config.copied_things[-1], str) or
+                                config.copied_things[-1] != current_clipboard):
+
                             if not folder_exists:
                                 current_folder = create_folder_for_days()
                                 if not current_folder:
@@ -99,11 +119,20 @@ def check_clipboard(app, selected_sort, combobox):
                                     time.sleep(1)
                                     continue
                                 folder_exists = True
+
+                            if config.stop or not config.monitoring:
+                                continue
+
                             config.copied_things.append(current_clipboard)
                             curr_time = f"{datetime.now().hour}_{datetime.now().minute}_{datetime.now().second}"
-                            with open(config.folder_path + '/'+ str(date.today())+ '/'+ str(curr_time) + '.txt', "w") as file:
+                            file_path = os.path.join(config.folder_path, str(date.today()), f"{curr_time}.txt")
+
+                            with open(file_path, "w", encoding='utf-8') as file:
                                 file.write(current_clipboard)
-                            app.after(0, current_choice)
+
+                            if not config.stop:
+                                app.after(0, current_choice)
+
                             last_clipboard = current_clipboard
                             last_image_hash = None
                             print(f"Добавлен текст: {current_clipboard[:50]}...")
@@ -111,23 +140,11 @@ def check_clipboard(app, selected_sort, combobox):
                     pass
                 except Exception as e:
                     print(f"Ошибка при получении текста: {e}")
-                else:
-                    try:
-                        current_clipboard = app.clipboard_get()
-                        last_clipboard = current_clipboard
 
-                        img = ImageGrab.grabclipboard()
-                        if isinstance(img, Image.Image):
-                            try:
-                                img_byte_arr = io.BytesIO()
-                                img.save(img_byte_arr, format='PNG')
-                                img_bytes = img_byte_arr.getvalue()
-                                last_image_hash = hashlib.md5(img_bytes).hexdigest()
-                            except:
-                                last_image_hash = None
-                    except:
-                        pass
-                time.sleep(0.3)
+        else:
+            time.sleep(0.5)
+
+        time.sleep(0.1)
 
 
 def start_monitoring(app, selected_sort, combobox):
