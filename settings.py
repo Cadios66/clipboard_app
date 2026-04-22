@@ -1,8 +1,10 @@
+import shutil
 from tkinter import colorchooser
 import os
 import colorsys
 import config
 import json
+
 
 class setting:
     def __init__(self, main_window):
@@ -20,8 +22,6 @@ class setting:
             if os.path.exists(file_path):
                 with open(file_path, 'r') as f:
                     settings = json.load(f)
-            else:
-                settings = {}
             settings['bg_color'] = config.background_color
             with open(file_path, 'w') as f:
                 json.dump(settings, f)
@@ -71,4 +71,5 @@ class setting:
         new_b = int(new_b_norm * 255)
 
         return f'#{new_r:02x}{new_g:02x}{new_b:02x}'.upper()
+
 

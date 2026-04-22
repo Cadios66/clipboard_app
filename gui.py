@@ -109,6 +109,15 @@ def open_file():
         open_folder_btn.configure(text=str(config.folder_path))
         save_folder()
 
+def update_combobox():
+    try:
+        new_dates = filters.date_filter()
+        date_combobox.configure(values = new_dates)
+        curr_value = date_combobox().get()
+        if curr_value not in new_dates:
+            date_combobox.update()
+    except Exception as e:
+        print(f"Ошибка {e}")
 def save_folder():
     file_path = os.path.join(config.root_folder, 'settings.json')
     try:
@@ -120,6 +129,7 @@ def save_folder():
         settings['folder_path'] = config.folder_path
         with open(file_path, 'w') as f:
             json.dump(settings, f)
+        update_combobox()
     except Exception as e:
         print(f"Ошибка: {e}")
 def load_folder():
@@ -179,10 +189,14 @@ def update_button_colors(wind_object):
             name.configure(bg = config.background_color, fg = wind_object.lighten_color(-0.3))
             word_filter.configure(fg_color=light_color, placeholder_text_color =wind_object.lighten_color(-0.5),
                                   border_color=dark_color)
-            find_words_btn.configure(fg_color=dark_color, hover_color= wind_object.lighten_color(-0.3))
+            find_words_btn.configure(fg_color=dark_color, hover_color= wind_object.lighten_color(-0.3)),
+            data.configure(fg_color = config.background_color),
+            type_label.configure(fg_color=config.background_color)
+            search_label.configure(fg_color=config.background_color),
+            input_frame.configure(fg_color=config.background_color)
 def setup():
     global app, list_of_text, word_filter, date_combobox, combobox, stop_button, \
-        clipboard_thread, open_folder_btn, name, main_wind, find_words_btn
+        clipboard_thread, open_folder_btn, name, main_wind, find_words_btn, data, type_label, search_label, input_frame
     app = tk.Tk()
     app.title("Буфер обмена")
     app.geometry("650x650")
@@ -210,7 +224,8 @@ def setup():
     type_frame = ctk.CTkFrame(combobox_frame, fg_color="transparent")
     type_frame.pack(side="left", padx=5)
 
-    ctk.CTkLabel(type_frame, text="Типы данных", font=('Comic Sans MS', 13), anchor="w").pack(fill='x')
+    type_label = ctk.CTkLabel(type_frame, text="Типы данных", font=('Comic Sans MS', 13), anchor="w")
+    type_label.pack(fill='x')
     combobox = ctk.CTkComboBox(type_frame, values=list(choices.keys()), command=selected_sort,
                                font=('Comic Sans MS', 15), dropdown_font=('Comic Sans MS', 13), state="readonly",
                                width=150)
@@ -220,7 +235,8 @@ def setup():
     date_frame = ctk.CTkFrame(combobox_frame, fg_color="transparent")
     date_frame.pack(side="left", padx=5)
 
-    ctk.CTkLabel(date_frame, text="Дата", font=('Comic Sans MS', 13), anchor="w").pack(fill='x')
+    data = ctk.CTkLabel(date_frame, text="Дата", font=('Comic Sans MS', 13), anchor="w")
+    data.pack(fill='x')
     date_combobox = ctk.CTkComboBox(date_frame, values=filters.date_filter(), command=selected_sort,
                                     font=('Comic Sans MS', 15), dropdown_font=('Comic Sans MS', 13), state="readonly",
                                     width=150)
@@ -229,7 +245,8 @@ def setup():
 
     search_frame = ctk.CTkFrame(combobox_frame, fg_color="transparent")
     search_frame.pack(side="left", padx=5)
-    ctk.CTkLabel(search_frame, text="", font=('Comic Sans MS', 13)).pack(fill='x')
+    search_label = ctk.CTkLabel(search_frame, text="", font=('Comic Sans MS', 13))
+    search_label.pack(fill='x')
     input_frame = ctk.CTkFrame(search_frame, fg_color="transparent")
     input_frame.pack()
 
@@ -319,5 +336,6 @@ def setup():
     app.protocol("WM_DELETE_WINDOW", close_command)
 
 def run_app():
+    filters.create_json()
     setup()
     app.mainloop()

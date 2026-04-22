@@ -7,59 +7,84 @@ from datetime import date
 from pathlib import Path
 import os, io
 import customtkinter as ctk
-
+from datetime import datetime, timedelta
 
 def formated_text(list_of_text):
     list_of_text.configure(state="normal")
-    list_of_text.delete(1.0, END)
+    list_of_text.delete(1.0, "end")  # Используйте "end" вместо END для CTkTextbox
 
     today_date = date.today()
-    dir = os.path.join(config.folder_path, (str(today_date)))
+    dir = os.path.join(config.folder_path, str(today_date))
 
     if not os.path.exists(dir):
-        list_of_text.insert(END, "Папка с данными не найдена\n")
+        list_of_text.insert("end", "Папка с данными не найдена\n")
         list_of_text.configure(state="disabled")
         return
+
     counter = 1
     config.image_references.clear()
-
-    list_of_text.configure(state="normal")
-    list_of_text.delete(1.0, END)
-    counter = 1
 
     for entry in os.scandir(dir):
         if entry.is_file():
             file_path = Path(entry)
-            file_extension = file_path .suffix.lower()
+            file_extension = file_path.suffix.lower()
             if file_extension == ".txt":
-                with open(entry, "r") as file:
-                    content = file.read()
-                list_of_text.insert(END, f"{counter}: {content}\n")
-                list_of_text.insert(END, "-" * 65 + "\n")
+                try:
+                    for encoding in ['utf-8', 'cp1251', 'latin-1']:
+                        try:
+                            with open(entry, "r", encoding=encoding) as file:
+                                content = file.read()
+                            break
+                        except UnicodeDecodeError:
+                            continue
 
-        list_of_text.see("end")
-        list_of_text.configure(state="disabled")
+                    list_of_text.insert("end", f"{counter}: {content}\n")
+                    list_of_text.insert("end", "-" * 65 + "\n")
+                    counter += 1
+                except Exception as e:
+                    list_of_text.insert("end", f"Ошибка чтения файла {entry.name}: {e}\n")
+
+    if counter == 1:
+        list_of_text.insert("end", "Нет текстовых файлов\n")
+
+    list_of_text.see("end")
+    list_of_text.configure(state="disabled")
 
 
 def show_links(list_of_text):
     today_date = date.today()
-    dir = os.path.join(config.folder_path, (str(today_date)))
+    dir = os.path.join(config.folder_path, str(today_date))
     list_of_text.configure(state="normal")
-    list_of_text.delete(1.0, END)
+    list_of_text.delete(1.0, "end")
     counter = 1
 
-    for entry in os.scandir(dir):
-        if entry.is_file():
-            type_of_file = Path(entry)
-            if type_of_file.suffix == ".txt":
-                with open(entry, "r") as file:
-                    content = file.read()
-                    if content.startswith('http') or content.startswith('https'):
-                        list_of_text.insert(END, f"{counter}: {content}\n")
-                        list_of_text.insert(END, "-" * 65 + "\n")
-                        counter += 1
+    if not os.path.exists(dir):
+        list_of_text.insert("end", "Папка с данными не найдена\n")
+        list_of_text.configure(state="disabled")
+        return
 
-    list_of_text.see(END)
+    for entry in os.scandir(dir):
+        if entry.is_file() and entry.name.endswith('.txt'):
+            try:
+                for encoding in ['utf-8', 'cp1251', 'latin-1']:
+                    try:
+                        with open(entry, "r", encoding=encoding) as file:
+                            content = file.read().strip()
+                        break
+                    except UnicodeDecodeError:
+                        continue
+
+                if content.startswith(('http://', 'https://', 'www.')):
+                    list_of_text.insert("end", f"{counter}: {content}\n")
+                    list_of_text.insert("end", "-" * 65 + "\n")
+                    counter += 1
+            except Exception as e:
+                print(f"Ошибка чтения {entry.name}: {e}")
+
+    if counter == 1:
+        list_of_text.insert("end", "Ссылки не найдены\n")
+
+    list_of_text.see("end")
     list_of_text.configure(state="disabled")
 
 
@@ -121,12 +146,27 @@ def show_images(list_of_text):
 
 def date_filter():
     file_path = os.path.join(config.root_folder, 'settings.json')
-    with open(file_path, 'r') as f:
-        data = json.load(f)
-        paths = data.get("folder_path")
-    dates = os.listdir(paths)
-    dates.append('Все')
-    return dates
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                paths = data.get("folder_path")
+                if paths and os.path.exists(paths):
+                    dates = os.listdir(paths)
+                    dates.append('Все')
+                    return dates
+                else: return ["Все"]
+        else:
+            return ["Все"]
+    except Exception as e:
+        return ["Все"]
 
+def create_json():
+    path = os.path.join(config.root_folder, 'settings.json')
+    if not os.path.exists(path):
+        data = {'auto_delete' : {"period": 0,
+            "start_date": datetime.now().isoformat()}, 'bg_color': '#ffffff', 'folder_path':None}
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
 
 print(date_filter())
