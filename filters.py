@@ -9,70 +9,49 @@ import os, io
 import customtkinter as ctk
 from datetime import datetime, timedelta
 
-def formated_text(list_of_text):
-    list_of_text.configure(state="normal")
-    list_of_text.delete(1.0, "end")
 
+def formated_text(list_of_text):
+    list_of_text.delete(1.0, END)
     today_date = date.today()
     dir = os.path.join(config.folder_path, str(today_date))
 
     if not os.path.exists(dir):
         list_of_text.insert("end", "Папка с данными не найдена\n")
-        list_of_text.configure(state="disabled")
         return
 
     counter = 1
     config.image_references.clear()
 
     for entry in os.scandir(dir):
-        if entry.is_file():
-            file_path = Path(entry)
-            file_extension = file_path.suffix.lower()
-            if file_extension == ".txt":
-                try:
-                    for encoding in ['utf-8', 'cp1251', 'latin-1']:
-                        try:
-                            with open(entry, "r", encoding=encoding) as file:
-                                content = file.read()
-                            break
-                        except UnicodeDecodeError:
-                            continue
+        if entry.is_file() and entry.name.endswith('.txt'):
+            try:
+                with open(entry, "r", encoding='utf-8') as file:
+                    content = file.read().strip()
+                list_of_text.insert("end", f"{counter}: {content}\n")
 
-                    list_of_text.insert("end", f"{counter}: {content}\n")
-                    list_of_text.insert("end", "-" * 65 + "\n")
-                    counter += 1
-                except Exception as e:
-                    list_of_text.insert("end", f"Ошибка чтения файла {entry.name}: {e}\n")
+                list_of_text.insert("end", "-" * 65 + "\n")
+                counter += 1
+            except Exception as e:
+                print(f"Ошибка: {e}")
 
-    if counter == 1:
-        list_of_text.insert("end", "Нет текстовых файлов\n")
-
-    list_of_text.see("end")
-    list_of_text.configure(state="disabled")
+    list_of_text.see('end')
 
 
 def show_links(list_of_text):
     today_date = date.today()
     dir = os.path.join(config.folder_path, str(today_date))
-    list_of_text.configure(state="normal")
     list_of_text.delete(1.0, "end")
     counter = 1
 
     if not os.path.exists(dir):
         list_of_text.insert("end", "Папка с данными не найдена\n")
-        list_of_text.configure(state="disabled")
         return
 
     for entry in os.scandir(dir):
         if entry.is_file() and entry.name.endswith('.txt'):
             try:
-                for encoding in ['utf-8', 'cp1251', 'latin-1']:
-                    try:
-                        with open(entry, "r", encoding=encoding) as file:
-                            content = file.read().strip()
-                        break
-                    except UnicodeDecodeError:
-                        continue
+                with open(entry, "r", encoding='utf-8') as file:
+                    content = file.read().strip()
 
                 if content.startswith(('http://', 'https://', 'www.')):
                     list_of_text.insert("end", f"{counter}: {content}\n")
@@ -85,13 +64,11 @@ def show_links(list_of_text):
         list_of_text.insert("end", "Ссылки не найдены\n")
 
     list_of_text.see("end")
-    list_of_text.configure(state="disabled")
 
 
 def show_text(list_of_text):
     today_date = date.today()
     dir = os.path.join(config.folder_path, (str(today_date)))
-    list_of_text.configure(state="normal")
     list_of_text.delete(1.0, END)
     counter = 1
 
@@ -99,56 +76,46 @@ def show_text(list_of_text):
         if entry.is_file():
             type_of_file = Path(entry)
             if type_of_file.suffix == ".txt":
-                with open(entry, "r") as file:
+                with open(entry, "r", encoding='utf-8') as file:
                     content = file.read()
                 list_of_text.insert(END, f"{counter}: {content}\n")
                 list_of_text.insert(END, "-" * 65 + "\n")
             counter += 1
 
     list_of_text.see(END)
-    list_of_text.configure(state="disabled")
 
 
 def show_images(list_of_text):
-    list_of_text.configure(state="normal")
     list_of_text.delete(1.0, END)
-    counter = 1
+    list_of_text.configure(state="normal")
 
-    config.image_references.clear()
+    today_date = date.today()
+    dir = os.path.join(config.folder_path, str(today_date))
 
-    for i, item in enumerate(config.copied_things):
-        if isinstance(item, Image.Image):
+    if not os.path.exists(dir):
+        list_of_text.insert(END, "Папка с данными не найдена\n")
+        list_of_text.configure(state="disabled")
+        return
 
-            try:
-                list_of_text.insert(END, f"{counter}. Изображение {item.width}x{item.height}\n")
+    image_files = []
+    for entry in os.scandir(dir):
+        if entry.is_file() and entry.name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+            image_files.append(entry.name)
 
-                display_img = item.copy()
-                max_width = 300
+    if not image_files:
+        list_of_text.insert(END, "Изображения не найдены\n")
+    else:
+        for i, img_name in enumerate(image_files, 1):
+            list_of_text.insert(END, f"{i}. {img_name}\n")
+            list_of_text.insert(END, "-" * 65 + "\n")
 
-                if display_img.width > max_width:
-                    ratio = max_width / display_img.width
-                    new_height = int(display_img.height * ratio)
-                    display_img = display_img.resize((max_width, new_height), Image.Resampling.LANCZOS)
-
-                photo = ImageTk.PhotoImage(display_img)
-                config.image_references.append(photo)
-
-
-                counter += 1
-            except Exception as e:
-                list_of_text.insert(END, f"{counter}. Не удалось загрузить изображение\n")
-                list_of_text.insert(END, "-" * 65 + "\n")
-                counter += 1
-    if counter == 1:
-        list_of_text.insert(END, "Нет изображений в истории\n")
-    list_of_text.see(END)
     list_of_text.configure(state="disabled")
 
 def date_filter():
     file_path = os.path.join(config.root_folder, 'settings.json')
     try:
         if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 paths = data.get("folder_path")
                 if paths and os.path.exists(paths):

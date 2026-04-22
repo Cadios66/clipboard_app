@@ -11,8 +11,8 @@ import tkinter as tk
 import config
 import os
 from tkinter import messagebox
-
 import filters
+import gui
 
 
 def shrink_the_image(image, filename, target):
@@ -44,6 +44,7 @@ def create_folder_for_days():
         path = os.path.join(config.folder_path, str(today_date))
         if not os.path.exists(path):
             os.makedirs(path)
+            gui.update_combobox()
             print(f"Папка на {today_date} создана")
         else:
             print(f"Папка на {today_date} уже существует")
@@ -76,13 +77,12 @@ def check_clipboard(app, selected_sort, combobox):
                         if config.stop or not config.monitoring:
                             continue
 
-                        if not folder_exists:
-                            current_folder = create_folder_for_days()
-                            if not current_folder:
-                                print("Ошибка при создании папки")
-                                time.sleep(1)
-                                continue
-                            folder_exists = True
+                        current_folder = create_folder_for_days()
+                        gui.update_combobox_date()
+                        if not current_folder:
+                            print("Ошибка при создании папки")
+                            time.sleep(1)
+                            continue
 
                         if config.stop or not config.monitoring:
                             continue
@@ -112,13 +112,12 @@ def check_clipboard(app, selected_sort, combobox):
                                 not isinstance(config.copied_things[-1], str) or
                                 config.copied_things[-1] != current_clipboard):
 
-                            if not folder_exists:
-                                current_folder = create_folder_for_days()
-                                if not current_folder:
-                                    print("Ошибка при создании папки")
-                                    time.sleep(1)
-                                    continue
-                                folder_exists = True
+                            current_folder = create_folder_for_days()
+                            gui.update_combobox_date()
+                            if not current_folder:
+                                print("Ошибка при создании папки")
+                                time.sleep(1)
+                                continue
 
                             if config.stop or not config.monitoring:
                                 continue
@@ -135,6 +134,8 @@ def check_clipboard(app, selected_sort, combobox):
 
                             last_clipboard = current_clipboard
                             last_image_hash = None
+                            current_filter = combobox.get()
+                            app.after(0, lambda: gui.selected_sort(current_filter))
                             print(f"Добавлен текст: {current_clipboard[:50]}...")
                 except tk.TclError:
                     pass

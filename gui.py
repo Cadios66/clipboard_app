@@ -6,6 +6,7 @@ from tkinter import *
 import customtkinter
 import config
 import filters
+import monitoring_clipboard
 from monitoring_clipboard import start_monitoring
 from filters import formated_text, show_links, show_text, show_images
 import tkinter.filedialog as fd
@@ -34,6 +35,15 @@ def save_auto_delete_settings(period):
     except Exception as e:
         print(f"Ошибка сохранения настроек: {e}")
 
+def delete_all():
+    delete_path = config.folder_path
+    try:
+        for folders in os.listdir(delete_path):
+            item_path = os.path.join(delete_path, folders)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+    except Exception as e:
+        mg.showinfo("Автоудаление", f"Ошибка: {e}")
 
 def check_auto_delete():
     file_path = os.path.join(config.root_folder, 'settings.json')
@@ -53,7 +63,10 @@ def check_auto_delete():
         now = datetime.now()
 
         need_delete = False
-        if period == "Неделя":
+
+        if period == "Сейчас":
+            need_delete = True
+        elif period == "Неделя":
             need_delete = now >= start_date + timedelta(weeks=1)
         elif period == "Месяц":
             need_delete = now >= start_date + timedelta(days=30)
@@ -61,20 +74,19 @@ def check_auto_delete():
             need_delete = now >= start_date + timedelta(days=365)
 
         if need_delete:
-            delete_path = config.folder_path
-            if delete_path and os.path.exists(delete_path):
-                for folders in os.listdir(delete_path):
-                    item_path = os.path.join(delete_path, folders)
-                    if os.path.isdir(item_path):
-                        shutil.rmtree(item_path)
-            auto["start_date"] = now.isoformat()
-            settings["auto_delete"] = auto
+            delete_all()
+            monitoring_clipboard.create_folder_for_days()
+            update_combobox_date()
+            selected_sort(combobox.get())
+            if period != "Сейчас":
+                auto["start_date"] = now.isoformat()
+                settings["auto_delete"] = auto
 
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(settings, f, indent=4, ensure_ascii=False)
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(settings, f, indent=4, ensure_ascii=False)
 
-            mg.showinfo("Автоудаление", f"Данные очищены. Новый отсчёт: {period}")
-            return True
+                mg.showinfo("Автоудаление", f"Данные очищены. Новый отсчёт: {period}")
+                return True
 
         return False
     except Exception as e:
@@ -84,7 +96,12 @@ def check_auto_delete():
 
 def auto_delete_callback(period):
     save_auto_delete_settings(period)
-    print(f"Настройки сохранены: удаление через {period.lower()}")
+    if period == "Сейчас":
+        delete_all()
+        mg.showinfo("Автоудаление", "Все данные удалены")
+        update_combobox_date()
+        selected_sort(combobox.get())
+    else: print(f"Настройки сохранены: удаление через {period.lower()}")
 
 
 def stop_command():
@@ -95,6 +112,7 @@ def stop_command():
     else:
         config.monitoring = True
         stop_button.configure(text="Стоп")
+        update_combobox_date()
         print("Программа запущена")
 
 def close_command():
@@ -109,15 +127,19 @@ def open_file():
         open_folder_btn.configure(text=str(config.folder_path))
         save_folder()
 
-def update_combobox():
+def update_combobox_date():
     try:
         new_dates = filters.date_filter()
-        date_combobox.configure(values = new_dates)
-        curr_value = date_combobox().get()
-        if curr_value not in new_dates:
-            date_combobox.update()
+        current_value = date_combobox.get()
+        date_combobox.configure(values=new_dates)
+        if current_value in new_dates:
+            date_combobox.set(current_value)
+        else:
+            date_combobox.set("Все")
     except Exception as e:
-        print(f"Ошибка {e}")
+        print(f"Ошибка обновления комбобокса: {e}")
+
+
 def save_folder():
     file_path = os.path.join(config.root_folder, 'settings.json')
     try:
@@ -129,9 +151,10 @@ def save_folder():
         settings['folder_path'] = config.folder_path
         with open(file_path, 'w') as f:
             json.dump(settings, f)
-        update_combobox()
+        update_combobox_date()
     except Exception as e:
         print(f"Ошибка: {e}")
+
 def load_folder():
     file_path = os.path.join(config.root_folder, 'settings.json')
     try:
@@ -166,7 +189,10 @@ def load_color():
 
 def selected_sort(choice):
     if choice in choices:
+        list_of_text.configure(state="normal")
+        list_of_text.delete(1.0, END)
         choices[choice]()
+
 def update_button_colors(wind_object):
     if config.background_color and wind_object:
         light_color = wind_object.lighten_color(0.2)
@@ -179,24 +205,28 @@ def update_button_colors(wind_object):
             combobox.configure(fg_color=light_color, border_color = dark_color,
                                button_color = dark_color, button_hover_color = wind_object.lighten_color(-0.3),
                                dropdown_fg_color = wind_object.lighten_color(0.2), dropdown_hover_color = light_color,
-                               dropdown_text_color = wind_object.lighten_color(-0.3)),
+                               dropdown_text_color = wind_object.lighten_color(-0.3), text_color= wind_object.lighten_color(-0.5)),
             date_combobox.configure(fg_color=light_color, border_color=dark_color,
-                               button_color=dark_color, button_hover_color=wind_object.lighten_color(-0.3),
+                               button_color=dark_color, button_hover_color=wind_object.lighten_color(-0.5),
                                dropdown_fg_color=wind_object.lighten_color(0.2), dropdown_hover_color=light_color,
-                               dropdown_text_color=wind_object.lighten_color(-0.3))
+                               dropdown_text_color=wind_object.lighten_color(-0.3), text_color= wind_object.lighten_color(-0.5))
             list_of_text.configure(fg_color = wind_object.lighten_color(0.2), border_color=dark_color,
-            text_color = wind_object.lighten_color(-0.4))
-            name.configure(bg = config.background_color, fg = wind_object.lighten_color(-0.3))
+            text_color = wind_object.lighten_color(-0.4), scrollbar_button_color= dark_color, scrollbar_button_hover_color = wind_object.lighten_color(-0.3),)
+            name.configure(bg = config.background_color, fg = wind_object.lighten_color(-0.5))
             word_filter.configure(fg_color=light_color, placeholder_text_color =wind_object.lighten_color(-0.5),
                                   border_color=dark_color)
             find_words_btn.configure(fg_color=dark_color, hover_color= wind_object.lighten_color(-0.3)),
-            data.configure(fg_color = config.background_color),
-            type_label.configure(fg_color=config.background_color)
+            data.configure(fg_color = config.background_color, text_color= wind_object.lighten_color(-0.5)),
+            type_label.configure(fg_color=config.background_color, text_color= wind_object.lighten_color(-0.5))
             search_label.configure(fg_color=config.background_color),
-            input_frame.configure(fg_color=config.background_color)
+            input_frame.configure(fg_color=config.background_color),
+            type_frame.configure(fg_color=config.background_color),
+            date_frame.configure(fg_color=config.background_color),
+            search_frame.configure(fg_color=config.background_color)
 def setup():
     global app, list_of_text, word_filter, date_combobox, combobox, stop_button, \
-        clipboard_thread, open_folder_btn, name, main_wind, find_words_btn, data, type_label, search_label, input_frame
+        clipboard_thread, open_folder_btn, name, main_wind, find_words_btn, data, type_label, search_label, input_frame, \
+        type_frame, date_frame, search_frame
     app = tk.Tk()
     app.title("Буфер обмена")
     app.geometry("650x650")
@@ -265,11 +295,35 @@ def setup():
         height=15,
         wrap=tk.WORD,
         font=('Comic Sans MS', 15),
-        state="disabled",
+        state="normal",
         border_width=2,
         fg_color='white'
     )
     list_of_text.pack(pady=10, padx=10, fill = tk.BOTH, expand=True)
+
+    def disable_editing(event):
+        if event.state & 0x4 and event.keysym.lower() == 'c':
+            copy_text()
+            return "break"
+        if event.keysym not in ('c', 'C', 'Insert', 'Control_L', 'Control_R'):
+            return "break"
+
+    def show_context_menu(event):
+        context_menu.tk_popup(event.x_root, event.y_root)
+
+    def copy_text():
+        try:
+            selected = list_of_text.selection_get()
+            app.clipboard_clear()
+            app.clipboard_append(selected)
+        except:
+            pass
+
+    context_menu = tk.Menu(app, tearoff=0)
+    context_menu.add_command(label="Копировать", command=copy_text)
+
+    list_of_text.bind("<Key>", disable_editing)
+    list_of_text.bind("<Button-3>", show_context_menu)
 
     stop_button = customtkinter.CTkButton(
         master=app,
@@ -287,18 +341,7 @@ def setup():
     stop_button.pack(pady=10)
     load_folder()
 
-    if check_auto_delete():
-        delete_path = config.folder_path
-        try:
-            for folders in os.listdir(delete_path):
-                item_path = os.path.join(delete_path, folders)
-                if os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-        except Exception as e:
-            mg.showinfo("Автоудаление", f"Ошибка: {e}")
-
-
-
+    check_auto_delete()
     open_folder_btn = customtkinter.CTkButton(
         master=app,
         fg_color='grey',
@@ -318,6 +361,7 @@ def setup():
     settings_menu = Menu()
 
     file_menu.add_command(label = "Цветовая тема", command= main_wind.color_choose)
+    settings_menu.add_command(label="Сейчас", command=lambda: auto_delete_callback("Сейчас"))
     settings_menu.add_command(label="Неделя", command=lambda: auto_delete_callback("Неделя"))
     settings_menu.add_command(label="Месяц", command=lambda: auto_delete_callback("Месяц"))
     settings_menu.add_command(label="Год", command=lambda: auto_delete_callback("Год"))
@@ -336,6 +380,7 @@ def setup():
     app.protocol("WM_DELETE_WINDOW", close_command)
 
 def run_app():
-    filters.create_json()
     setup()
+    update_combobox_date()
+    filters.create_json()
     app.mainloop()

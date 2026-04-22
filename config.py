@@ -1,6 +1,5 @@
 import os
 
-sort_choice = ['Все', "Ссылки", "Изображения", "Текст"]
 copied_things = []
 show_time = []
 monitoring = True

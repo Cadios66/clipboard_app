@@ -72,4 +72,3 @@ class setting:
 
         return f'#{new_r:02x}{new_g:02x}{new_b:02x}'.upper()
 
-
