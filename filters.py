@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 def formated_text(list_of_text):
     list_of_text.configure(state="normal")
-    list_of_text.delete(1.0, "end")  # Используйте "end" вместо END для CTkTextbox
+    list_of_text.delete(1.0, "end")
 
     today_date = date.today()
     dir = os.path.join(config.folder_path, str(today_date))
