@@ -16,6 +16,8 @@ import json
 from datetime import datetime, timedelta
 import tkinter.messagebox as mg
 
+
+
 def save_auto_delete_settings(period):
     file_path = os.path.join(config.root_folder, 'settings.json')
     try:
@@ -77,16 +79,18 @@ def check_auto_delete():
             delete_all()
             monitoring_clipboard.create_folder_for_days()
             update_combobox_date()
-            selected_sort(combobox.get())
-            if period != "Сейчас":
+            if period == "Сейчас":
+                auto["period"] = 0
+            else:
                 auto["start_date"] = now.isoformat()
-                settings["auto_delete"] = auto
-
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(settings, f, indent=4, ensure_ascii=False)
-
                 mg.showinfo("Автоудаление", f"Данные очищены. Новый отсчёт: {period}")
-                return True
+
+            settings["auto_delete"] = auto
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, indent=4, ensure_ascii=False)
+
+            selected_sort(combobox.get())
+            return True
 
         return False
     except Exception as e:
@@ -97,6 +101,7 @@ def check_auto_delete():
 def auto_delete_callback(period):
     save_auto_delete_settings(period)
     if period == "Сейчас":
+        save_auto_delete_settings(0)
         delete_all()
         mg.showinfo("Автоудаление", "Все данные удалены")
         update_combobox_date()
@@ -126,6 +131,8 @@ def open_file():
         config.folder_path = os.path.join(selected_folder, "copytext_app")
         open_folder_btn.configure(text=str(config.folder_path))
         save_folder()
+        update_combobox_date()
+        selected_sort("Все")
 
 def update_combobox_date():
     try:
@@ -210,8 +217,7 @@ def update_button_colors(wind_object):
                                button_color=dark_color, button_hover_color=wind_object.lighten_color(-0.5),
                                dropdown_fg_color=wind_object.lighten_color(0.2), dropdown_hover_color=light_color,
                                dropdown_text_color=wind_object.lighten_color(-0.3), text_color= wind_object.lighten_color(-0.5))
-            list_of_text.configure(fg_color = wind_object.lighten_color(0.2), border_color=dark_color,
-            text_color = wind_object.lighten_color(-0.4), scrollbar_button_color= dark_color, scrollbar_button_hover_color = wind_object.lighten_color(-0.3),)
+            list_of_text.configure(bg=wind_object.lighten_color(0.2),fg=wind_object.lighten_color(-0.4),insertbackground=wind_object.lighten_color(-0.4))
             name.configure(bg = config.background_color, fg = wind_object.lighten_color(-0.5))
             word_filter.configure(fg_color=light_color, placeholder_text_color =wind_object.lighten_color(-0.5),
                                   border_color=dark_color)
@@ -223,10 +229,15 @@ def update_button_colors(wind_object):
             type_frame.configure(fg_color=config.background_color),
             date_frame.configure(fg_color=config.background_color),
             search_frame.configure(fg_color=config.background_color)
+            text_scrollbar.configure(fg_color=light_color,bg_color=light_color,
+                                     button_color=dark_color,button_hover_color=wind_object.lighten_color(-0.3)
+            )
+            text_container.configure(fg_color=light_color,)
+
 def setup():
     global app, list_of_text, word_filter, date_combobox, combobox, stop_button, \
         clipboard_thread, open_folder_btn, name, main_wind, find_words_btn, data, type_label, search_label, input_frame, \
-        type_frame, date_frame, search_frame
+        type_frame, date_frame, search_frame, text_scrollbar, text_container
     app = tk.Tk()
     app.title("Буфер обмена")
     app.geometry("650x650")
@@ -287,19 +298,56 @@ def setup():
     find_words_btn = ctk.CTkButton(input_frame, text="🔍", height=30, width=30,
                                    font=('Comic Sans MS', 13))
     find_words_btn.pack()
+    load_folder()
 
-    list_of_text = customtkinter.CTkTextbox(
+
+    open_folder_btn = customtkinter.CTkButton(
         master=app,
-        width=80,
-        corner_radius=30,
-        height=15,
-        wrap=tk.WORD,
+        fg_color='grey',
+        text_color='black',
+        text=config.folder_path if config.folder_path else "Выберите папку для сохранения",
+        command=open_file,
         font=('Comic Sans MS', 15),
-        state="normal",
-        border_width=2,
-        fg_color='white'
+        hover_color='dark grey',
+        corner_radius=10,
     )
-    list_of_text.pack(pady=10, padx=10, fill = tk.BOTH, expand=True)
+    open_folder_btn.pack(pady=10, side='bottom')
+    stop_button = customtkinter.CTkButton(
+        master=app,
+        text="Стоп",
+        command=stop_command,
+        width=120,
+        height=35,
+        fg_color='grey',
+        corner_radius=10,
+        font=('Comic Sans MS', 18),
+        border_color='black',
+        hover_color='dark grey',
+        text_color='black'
+    )
+    stop_button.pack(pady=10, side = 'bottom')
+
+    text_container = ctk.CTkFrame(master=app,
+        corner_radius=20,
+        border_width=2,
+        fg_color="#ffffff"
+    )
+    text_container.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+
+    list_of_text = tk.Text(
+        master=text_container,
+        wrap=tk.WORD,
+        font=('Comic Sans MS', 11),
+        state="normal",
+        relief="flat",
+        highlightthickness=0,
+        padx=15, pady=10)
+
+    text_scrollbar = ctk.CTkScrollbar(master=text_container, command=list_of_text.yview)
+    list_of_text.configure(yscrollcommand=text_scrollbar.set)
+    text_scrollbar.pack(side="right", fill="y", padx=(0, 9), pady=5)
+    list_of_text.pack(side="left", fill="both", expand=True, padx=9, pady=5)
+
 
     def disable_editing(event):
         if event.state & 0x4 and event.keysym.lower() == 'c':
@@ -319,42 +367,15 @@ def setup():
         except:
             pass
 
+
     context_menu = tk.Menu(app, tearoff=0)
     context_menu.add_command(label="Копировать", command=copy_text)
 
     list_of_text.bind("<Key>", disable_editing)
     list_of_text.bind("<Button-3>", show_context_menu)
 
-    stop_button = customtkinter.CTkButton(
-        master=app,
-        text="Стоп",
-        command=stop_command,
-        width=120,
-        height=35,
-        fg_color='grey',
-        corner_radius=10,
-        font=('Comic Sans MS', 18),
-        border_color='black',
-        hover_color='dark grey',
-        text_color='black'
-    )
-    stop_button.pack(pady=10)
-    load_folder()
 
     check_auto_delete()
-    open_folder_btn = customtkinter.CTkButton(
-        master=app,
-        fg_color='grey',
-        text_color='black',
-        text=config.folder_path if config.folder_path else "Выберите папку для сохранения",
-        command=open_file,
-        font=('Comic Sans MS', 15),
-        hover_color = 'dark grey',
-        corner_radius = 10,
-    )
-    open_folder_btn.pack(pady=10)
-
-
 
     main_menu = Menu()
     file_menu = Menu()
@@ -372,10 +393,10 @@ def setup():
     main_menu.add_cascade(label = "Настройки", menu=file_menu)
     app.config(menu= main_menu)
 
-
     if config.background_color:
         load_color()
 
+    selected_sort("Все")
     clipboard_thread = start_monitoring(app, selected_sort, combobox)
     app.protocol("WM_DELETE_WINDOW", close_command)
 
