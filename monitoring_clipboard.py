@@ -54,11 +54,28 @@ def create_folder_for_days():
         return None
 
 
+def find_duplicate(content, directory):
+    if not os.path.exists(directory):
+        return False
+
+    for entry in os.scandir(directory):
+        if entry.is_file() and entry.name.endswith('.txt'):
+            try:
+                with open(entry.path, "r", encoding='utf-8') as f:
+                    if f.read().strip() == content.strip():
+                        return True
+            except:
+                continue
+    return False
+
 def check_clipboard(app, selected_sort, combobox):
-    last_clipboard = ""
+    try:
+        last_clipboard = app.clipboard_get()
+    except:
+        last_clipboard = ""
     current_choice = combobox.get()
     last_image_hash = None
-    folder_exists = False
+
 
     while not config.stop:
         if config.monitoring:
@@ -105,6 +122,10 @@ def check_clipboard(app, selected_sort, combobox):
                 try:
                     current_clipboard = app.clipboard_get()
                     if current_clipboard != last_clipboard and current_clipboard:
+                        if getattr(config, 'ignore_next_clipboard', False):
+                            config.ignore_next_clipboard = False
+                            last_clipboard = current_clipboard
+                            continue
                         if config.stop or not config.monitoring:
                             continue
 
@@ -118,7 +139,10 @@ def check_clipboard(app, selected_sort, combobox):
                                 print("Ошибка при создании папки")
                                 time.sleep(1)
                                 continue
-
+                            else:
+                                if find_duplicate(current_clipboard, current_folder):
+                                    last_clipboard = current_clipboard
+                                    continue
                             if config.stop or not config.monitoring:
                                 continue
 
