@@ -164,31 +164,44 @@ def search_content(search, base_path):
                         content = f.read()
                         if search.lower() in content.lower():
                             date_folder = os.path.basename(root)
-                            found_notes.append(f"[{date_folder}] {content}...")
+                            found_notes.append(f" {content}")
                 except:
                     continue
     return found_notes
 
 
 def run_search():
-    query = word_filter.get()
-    if not query:
-        selected_sort("Все")
-        return
-    path = os.path.join(config.folder_path, date_combobox.get())
-    results = search_content(query, path)
-    list_of_text.delete(1.0, "end")
+    app.focus_set()
+    query = word_filter.get().strip()
 
+    if not query:
+        selected_sort(combobox.get())
+        return
+    selected_date = date_combobox.get()
+    if selected_date == "Все":
+        path = config.folder_path
+    else:
+        path = os.path.join(config.folder_path, selected_date)
+
+    if not os.path.exists(path):
+        print(f"Ошибка: Путь {path} не существует")
+        return
+
+    results = search_content(query, path)
+
+    list_of_text.configure(state="normal")
+    list_of_text.delete(1.0, "end")
     list_of_text.tag_configure("highlight", background=config.background_color, foreground="black")
 
     if not results:
         list_of_text.insert("end", f"Ничего не найдено по запросу: {query}")
     else:
-        list_of_text.insert("end", f"Результаты поиска ({len(results)}):\n" + "-" * 40 + "\n\n")
-        for res in results:
-            start_pos = list_of_text.index(tk.INSERT)
-            list_of_text.insert(END, res + "\n\n" + "-" * 30 + "\n\n")
-            end_pos = list_of_text.index(tk.INSERT)
+        list_of_text.insert("end", f"Результаты поиска ({len(results)}):\n" + "-" * 90 + "\n\n")
+        for i, res in enumerate(results, 1):
+            start_pos = list_of_text.index("end-1c")
+            filters.append_row(list_of_text, res, i)
+            end_pos = list_of_text.index("end-1c")
+
             current_search_pos = start_pos
             while True:
                 current_search_pos = list_of_text.search(query, current_search_pos, stopindex=end_pos, nocase=True)
@@ -198,7 +211,6 @@ def run_search():
                 list_of_text.tag_add("highlight", current_search_pos, highlight_end)
                 current_search_pos = highlight_end
 
-    list_of_text.configure(state="normal")
 def save_folder():
     file_path = os.path.join(config.root_folder, 'settings.json')
     try:
@@ -463,6 +475,7 @@ def setup():
 
 def run_app():
     setup()
+    load_folder()
     filters.create_json()
     monitoring_clipboard.create_folder_for_days()
     app.mainloop()
