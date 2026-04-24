@@ -114,6 +114,8 @@ def check_clipboard(app, selected_sort, combobox):
 
                         last_image_hash = current_hash
                         last_clipboard = ""
+                        current_filter = combobox.get()
+                        app.after(0, lambda: gui.selected_sort(current_filter))
                         print(f"Добавлено новое изображение: {img.size}")
                 except Exception as e:
                     print(f"Ошибка обработки изображения: {e}")

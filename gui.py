@@ -8,7 +8,6 @@ import config
 import filters
 import monitoring_clipboard
 from monitoring_clipboard import start_monitoring
-from filters import formated_text, show_links, show_text, show_images
 import tkinter.filedialog as fd
 from settings import setting
 import customtkinter as ctk
@@ -36,14 +35,33 @@ def save_auto_delete_settings(period):
     except Exception as e:
         print(f"Ошибка сохранения настроек: {e}")
 
+
 def delete_all():
     delete_path = config.folder_path
+    settings_path = os.path.join(config.root_folder, 'settings.json')
+
+    pinned_files = []
     try:
-        for folders in os.listdir(delete_path):
-            item_path = os.path.join(delete_path, folders)
-            if os.path.isdir(item_path):
-                shutil.rmtree(item_path)
-                monitoring_clipboard.create_folder_for_days()
+        if os.path.exists(settings_path):
+            with open(settings_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                pinned_files = data.get("pinned_files", [])
+    except:
+        pass
+
+    try:
+        for root, dirs, files in os.walk(delete_path, topdown=False):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if file_path not in pinned_files:
+                    os.remove(file_path)
+
+            for folder in dirs:
+                folder_path = os.path.join(root, folder)
+                if not os.listdir(folder_path):
+                    os.rmdir(folder_path)
+
+        monitoring_clipboard.create_folder_for_days()
     except Exception as e:
         mg.showinfo("Автоудаление", f"Ошибка: {e}")
 
@@ -163,14 +181,14 @@ def search_content(search, base_path):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
                         if search.lower() in content.lower():
-                            date_folder = os.path.basename(root)
-                            found_notes.append(f" {content}")
+                            found_notes.append((file_path, content))
                 except:
                     continue
     return found_notes
 
 
 def run_search():
+    found_notes = []
     app.focus_set()
     query = word_filter.get().strip()
 
@@ -191,15 +209,15 @@ def run_search():
 
     list_of_text.configure(state="normal")
     list_of_text.delete(1.0, "end")
-    list_of_text.tag_configure("highlight", background=config.background_color, foreground="black")
+    list_of_text.tag_configure("highlight", background=config.background_color)
 
     if not results:
         list_of_text.insert("end", f"Ничего не найдено по запросу: {query}")
     else:
         list_of_text.insert("end", f"Результаты поиска ({len(results)}):\n" + "-" * 90 + "\n\n")
-        for i, res in enumerate(results, 1):
+        for i, (file_path, res) in enumerate(results, 1):
             start_pos = list_of_text.index("end-1c")
-            filters.append_row(list_of_text, res, i)
+            filters.append_row(list_of_text, res, i, file_path)
             end_pos = list_of_text.index("end-1c")
 
             current_search_pos = start_pos
@@ -241,10 +259,11 @@ def load_folder():
         print(f"Ошибка {e}")
 
 choices = {
-        "Все": lambda: formated_text(list_of_text, date_combobox),
-        "Ссылки": lambda: show_links(list_of_text, date_combobox),
-        "Текст": lambda: show_text(list_of_text, date_combobox),
-        "Изображения": lambda: show_images(list_of_text, date_combobox)}
+        "Все": lambda: filters.formated_text(list_of_text, date_combobox),
+        "Ссылки": lambda: filters.show_links(list_of_text, date_combobox),
+        "Текст": lambda: filters.show_text(list_of_text, date_combobox),
+        "Изображения": lambda: filters.show_images(list_of_text, date_combobox),
+        "Закрепленные": lambda: filters.show_pinned(list_of_text, date_combobox)}
 
 def load_color():
     file_path = os.path.join(config.root_folder, 'settings.json')
@@ -298,7 +317,7 @@ def update_button_colors(wind_object):
             text_scrollbar.configure(fg_color=light_color,bg_color=light_color,
                                      button_color=dark_color,button_hover_color=wind_object.lighten_color(-0.3)
             )
-            text_container.configure(fg_color=light_color,)
+            text_container.configure(fg_color=light_color,border_color=wind_object.lighten_color(-0.3),)
 
 def setup():
     global app, list_of_text, word_filter, date_combobox, combobox, stop_button, \
