@@ -12,7 +12,8 @@ import config
 import os
 from tkinter import messagebox
 import filters
-from gui import update_combobox_date
+import gui
+
 
 def shrink_the_image(image, filename, target):
     min_quality, max_quality = 25, 96
@@ -43,7 +44,7 @@ def create_folder_for_days():
         path = os.path.join(config.folder_path, str(today_date))
         if not os.path.exists(path):
             os.makedirs(path)
-            update_combobox_date()
+            gui.update_combobox_date()
             print(f"Папка на {today_date} создана")
         else:
             print(f"Папка на {today_date} уже существует")
@@ -94,7 +95,7 @@ def check_clipboard(app, selected_sort, combobox):
                             continue
 
                         current_folder = create_folder_for_days()
-                        update_combobox_date()
+                        gui.update_combobox_date()
                         if not current_folder:
                             print("Ошибка при создании папки")
                             time.sleep(1)
@@ -133,7 +134,7 @@ def check_clipboard(app, selected_sort, combobox):
                                 config.copied_things[-1] != current_clipboard):
 
                             current_folder = create_folder_for_days()
-                            update_combobox_date()
+                            gui.update_combobox_date()
                             if not current_folder:
                                 print("Ошибка при создании папки")
                                 time.sleep(1)
@@ -158,7 +159,7 @@ def check_clipboard(app, selected_sort, combobox):
                             last_clipboard = current_clipboard
                             last_image_hash = None
                             current_filter = combobox.get()
-                            app.after(0, lambda: selected_sort(current_filter))
+                            app.after(0, lambda: gui.selected_sort(current_filter))
                             print(f"Добавлен текст: {current_clipboard[:50]}...")
                 except tk.TclError:
                     pass

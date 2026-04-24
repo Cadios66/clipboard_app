@@ -151,6 +151,54 @@ def date_to_show():
     if curr_date != "Все":
         return os.path.join(config.folder_path, date_combobox.get())
 
+def search_content(search, base_path):
+    if not base_path or not os.path.exists(base_path):
+        return []
+    found_notes = []
+    for root, dirs, files in os.walk(base_path):
+        for file_name in files:
+            if file_name.endswith(".txt"):
+                file_path = os.path.join(root, file_name)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        if search.lower() in content.lower():
+                            date_folder = os.path.basename(root)
+                            found_notes.append(f"[{date_folder}] {content}...")
+                except:
+                    continue
+    return found_notes
+
+
+def run_search():
+    query = word_filter.get()
+    if not query:
+        selected_sort("Все")
+        return
+    path = os.path.join(config.folder_path, date_combobox.get())
+    results = search_content(query, path)
+    list_of_text.delete(1.0, "end")
+
+    list_of_text.tag_configure("highlight", background=config.background_color, foreground="black")
+
+    if not results:
+        list_of_text.insert("end", f"Ничего не найдено по запросу: {query}")
+    else:
+        list_of_text.insert("end", f"Результаты поиска ({len(results)}):\n" + "-" * 40 + "\n\n")
+        for res in results:
+            start_pos = list_of_text.index(tk.INSERT)
+            list_of_text.insert(END, res + "\n\n" + "-" * 30 + "\n\n")
+            end_pos = list_of_text.index(tk.INSERT)
+            current_search_pos = start_pos
+            while True:
+                current_search_pos = list_of_text.search(query, current_search_pos, stopindex=end_pos, nocase=True)
+                if not current_search_pos:
+                    break
+                highlight_end = f"{current_search_pos}+{len(query)}c"
+                list_of_text.tag_add("highlight", current_search_pos, highlight_end)
+                current_search_pos = highlight_end
+
+    list_of_text.configure(state="normal")
 def save_folder():
     file_path = os.path.join(config.root_folder, 'settings.json')
     try:
@@ -184,7 +232,7 @@ choices = {
         "Все": lambda: formated_text(list_of_text, date_combobox),
         "Ссылки": lambda: show_links(list_of_text, date_combobox),
         "Текст": lambda: show_text(list_of_text, date_combobox),
-        "Изображения": lambda: show_images(list_of_text)}
+        "Изображения": lambda: show_images(list_of_text, date_combobox)}
 
 def load_color():
     file_path = os.path.join(config.root_folder, 'settings.json')
@@ -308,7 +356,7 @@ def setup():
     word_filter.pack(side='left', padx=(0, 5))
 
     find_words_btn = ctk.CTkButton(input_frame, text="🔍", height=30, width=30,
-                                   font=('Comic Sans MS', 13))
+                                   font=('Comic Sans MS', 13), command=run_search)
     find_words_btn.pack()
     load_folder()
 

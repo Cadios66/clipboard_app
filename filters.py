@@ -254,41 +254,50 @@ def show_text(list_of_text, date_combobox):
     list_of_text.see(END)
 
 
-def show_images(list_of_text):
+def show_images(list_of_text, date_combobox):
     list_of_text.configure(state="normal")
-    list_of_text.delete(1.0, END)
-
-    today_date = date.today()
-    directory = os.path.join(config.folder_path, str(today_date))
-
-    if not os.path.exists(directory):
-        list_of_text.insert(END, "Папка с данными не найдена\n")
-        list_of_text.configure(state="disabled")
-        return
-
+    list_of_text.delete(1.0, tk.END)
     config.image_references.clear()
 
-    image_files = [f for f in os.listdir(directory) if
-                   f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
+    raw_width = list_of_text.winfo_width()
+    if raw_width > 100:
 
-    if not image_files:
-        list_of_text.insert(END, "Изображения не найдены\n")
+        list_of_text.configure(tabs=(raw_width - 70, tk.CENTER, raw_width - 35, tk.CENTER))
+
+    selected_date = date_combobox.get()
+    counter = 1
+    image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp')
+
+    files_to_process = []
+
+    if selected_date == "Все":
+        base_path = config.folder_path
+        if base_path and os.path.exists(base_path):
+            for root, dirs, files in os.walk(base_path):
+                for file in files:
+                    if file.lower().endswith(image_extensions):
+                        files_to_process.append(os.path.join(root, file))
     else:
-        raw_width = list_of_text.winfo_width()
-        tab_pos = raw_width - 40 if raw_width > 10 else 500
-        list_of_text.configure(tabs=(tab_pos, tk.RIGHT))
+        directory = date_to_show(date_combobox)
+        if directory and os.path.exists(directory):
+            for entry in os.scandir(directory):
+                if entry.is_file() and entry.name.lower().endswith(image_extensions):
+                    files_to_process.append(entry.path)
 
-        for i, img_name in enumerate(image_files, 1):
-            img_path = os.path.join(directory, img_name)
+    if not files_to_process:
+        list_of_text.insert(tk.END, "Изображения не найдены\n")
+    else:
+        for img_path in files_to_process:
+            img_name = os.path.basename(img_path)
             try:
-
                 pil_img = Image.open(img_path)
                 max_size = (350, 350)
                 pil_img.thumbnail(max_size)
 
                 tk_img = ImageTk.PhotoImage(pil_img)
                 config.image_references.append(tk_img)
-                append_image_row(list_of_text, img_name, tk_img, i, img_path)
+                append_image_row(list_of_text, img_name, tk_img, counter, img_path)
+                counter += 1
             except Exception as e:
                 print(f"Ошибка загрузки {img_name}: {e}")
 
