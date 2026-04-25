@@ -5,18 +5,21 @@ import colorsys
 import config
 import json
 
-
 class setting:
     def __init__(self, main_window):
         self.main_window = main_window
+
     def color_choose(self):
         color = colorchooser.askcolor()
         if color and color[1]:
             config.background_color = color[1]
             self.main_window.configure(bg = config.background_color)
-            from gui import update_button_colors
-            update_button_colors(self)
-        file_path = os.path.join(config.root_folder, 'settings.json')
+
+            import gui
+            gui.update_button_colors(self)
+            choice = gui.combobox.get()
+            gui.selected_sort(choice)
+        file_path = config.settings_path
         try:
             if os.path.exists(file_path):
                 with open(file_path, 'r') as f:
@@ -28,6 +31,9 @@ class setting:
             print(f"Ошибка: {e}")
 
     def quit_app(self):
+        lock_path = os.path.join(config.folder_path, "running.txt")
+        if os.path.exists(lock_path):
+            os.remove(lock_path)
         self.main_window.quit()
 
     @staticmethod

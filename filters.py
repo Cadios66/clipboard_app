@@ -19,12 +19,6 @@ def date_to_show(date_combobox, selection=None):
     return path if os.path.exists(path) else None
 
 
-def pin_activate_btn(btn):
-    if btn.cget("text") == "☆":
-        btn.configure(text="★", fg="#f1c40f")
-    else:
-        btn.configure(text="☆", fg='black')
-
 
 def copy_to_clipboard(text, list_of_text):
     list_of_text.clipboard_clear()
@@ -56,7 +50,7 @@ def wrap_text(text, width=70):
 
 
 def is_file_pinned(file_path):
-    settings_path = os.path.join(config.root_folder, 'settings.json')
+    settings_path = config.settings_path
     if not os.path.exists(settings_path): return False
     try:
         with open(settings_path, 'r', encoding='utf-8') as f:
@@ -67,7 +61,7 @@ def is_file_pinned(file_path):
 
 
 def toggle_pin(file_path, btn):
-    settings_path = os.path.join(config.root_folder, 'settings.json')
+    settings_path = config.settings_path
     try:
         with open(settings_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -156,7 +150,7 @@ def formated_text(list_of_text, date_combobox):
 
     raw_width = list_of_text.winfo_width()
     if raw_width > 100:
-        list_of_text.configure(tabs=(raw_width - 70, tk.CENTER, raw_width - 35, tk.CENTER))
+        list_of_text.configure(tabs=(raw_width - 90, tk.CENTER, raw_width - 35, tk.CENTER))
 
     base_path = config.folder_path if selected_date == "Все" else date_to_show(date_combobox)
     if not base_path or not os.path.exists(base_path):
@@ -207,7 +201,7 @@ def show_links(list_of_text, date_combobox):
     list_of_text.delete(1.0, "end")
     raw_width = list_of_text.winfo_width()
     if raw_width > 100:
-        list_of_text.configure(tabs=(raw_width - 70, tk.CENTER, raw_width - 35, tk.CENTER))
+        list_of_text.configure(tabs=(raw_width - 90, tk.CENTER, raw_width - 35, tk.CENTER))
 
     base_path = config.folder_path if selected_date == "Все" else date_to_show(date_combobox)
     if not base_path or not os.path.exists(base_path):
@@ -247,7 +241,7 @@ def show_text(list_of_text, date_combobox):
     if not directory or not os.path.exists(directory): return
     raw_width = list_of_text.winfo_width()
     if raw_width > 100:
-        list_of_text.configure(tabs=(raw_width - 70, tk.CENTER, raw_width - 35, tk.CENTER))
+        list_of_text.configure(tabs=(raw_width - 90, tk.CENTER, raw_width - 35, tk.CENTER))
     counter = 1
     for entry in os.scandir(directory):
         if entry.is_file() and entry.name.endswith(".txt"):
@@ -264,11 +258,11 @@ def show_text(list_of_text, date_combobox):
 
 def show_images(list_of_text, date_combobox):
     list_of_text.configure(state="normal")
-    list_of_text.delete(1.0, tk.END)
+    list_of_text.delete(1.0, "end")
     config.image_references.clear()
     raw_width = list_of_text.winfo_width()
     if raw_width > 100:
-        list_of_text.configure(tabs=(raw_width - 70, tk.CENTER, raw_width - 35, tk.CENTER))
+        list_of_text.configure(tabs=(raw_width - 90, tk.CENTER, raw_width - 35, tk.CENTER))
     selected_date = date_combobox.get()
     counter = 1
     image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp')
@@ -303,7 +297,7 @@ def show_pinned(list_of_text, date_combobox):
     list_of_text.configure(state="normal")
     list_of_text.delete(1.0, "end")
     config.image_references.clear()
-    settings_path = os.path.join(config.root_folder, 'settings.json')
+    settings_path = config.settings_path
     try:
         with open(settings_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -340,23 +334,27 @@ def show_pinned(list_of_text, date_combobox):
 
 
 def date_filter():
-    file_path = os.path.join(config.root_folder, 'settings.json')
-    try:
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as f:
+    paths = config.folder_path
+    if not paths and os.path.exists(config.settings_path):
+        try:
+            with open(config.settings_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 paths = data.get("folder_path")
-                if paths and os.path.exists(paths):
-                    dates = [d for d in os.listdir(paths) if os.path.isdir(os.path.join(paths, d))]
-                    dates.append('Все')
-                    return dates
-    except:
-        pass
+        except:
+            pass
+    if paths and os.path.exists(paths):
+        try:
+            dates = [d for d in os.listdir(paths) if os.path.isdir(os.path.join(paths, d))]
+            dates.sort(reverse=True)
+            dates.append('Все')
+            return dates
+        except:
+            pass
     return ["Все"]
 
 
 def create_json():
-    path = os.path.join(config.root_folder, 'settings.json')
+    path = config.settings_path
     if not os.path.exists(path):
         data = {
             'auto_delete': {"period": 0, "start_date": datetime.now().isoformat()},

@@ -1,8 +1,11 @@
+import os
+import sys
 import os.path
-import shutil
+import threading
 import tkinter as tk
-from tkinter import ttk
 from tkinter import *
+from tkinter import messagebox
+
 import customtkinter
 import config
 import filters
@@ -12,15 +15,26 @@ import tkinter.filedialog as fd
 from settings import setting
 import customtkinter as ctk
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 import tkinter.messagebox as mg
 from datetime import datetime,date
+import winreg
+from pystray import Icon, Menu as TrayMenu, MenuItem as TrayMenuItem
+from PIL import Image
+import socket
+
+def get_path(relative_path):
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 def save_auto_delete_settings(period):
-    file_path = os.path.join(config.root_folder, 'settings.json')
+    file_path = config.settings_path
     try:
         if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
         else:
             settings = {}
@@ -28,17 +42,17 @@ def save_auto_delete_settings(period):
             "period": period,
             "start_date": datetime.now().isoformat()}
 
-        with open(file_path, 'w') as f:
-            json.dump(settings, f, indent = 4)
-        print(f"Установлено автоудаление: {period}")
-        mg.showinfo("Автоудаление", f"Установлено автоудаление: {period}")
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(settings, f, indent = 4,  ensure_ascii=False)
+        if period != "Сейчас":
+            mg.showinfo("Автоудаление", f"Установлено автоудаление: {period}")
     except Exception as e:
         print(f"Ошибка сохранения настроек: {e}")
 
 
 def delete_all():
     delete_path = config.folder_path
-    settings_path = os.path.join(config.root_folder, 'settings.json')
+    settings_path = config.settings_path
 
     pinned_files = []
     try:
@@ -66,12 +80,12 @@ def delete_all():
         mg.showinfo("Автоудаление", f"Ошибка: {e}")
 
 def check_auto_delete():
-    file_path = os.path.join(config.root_folder, 'settings.json')
+    file_path = config.settings_path
     if not os.path.exists(file_path):
         return False
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             settings = json.load(f)
 
         auto = settings.get("auto_delete")
@@ -98,7 +112,7 @@ def check_auto_delete():
             monitoring_clipboard.create_folder_for_days()
             update_combobox_date()
             if period == "Сейчас":
-                auto["period"] = 0
+                auto["period"] = "Выключено"
             else:
                 auto["start_date"] = now.isoformat()
                 mg.showinfo("Автоудаление", f"Данные очищены. Новый отсчёт: {period}")
@@ -117,14 +131,15 @@ def check_auto_delete():
 
 
 def auto_delete_callback(period):
-    save_auto_delete_settings(period)
     if period == "Сейчас":
-        save_auto_delete_settings(0)
+        save_auto_delete_settings("Выключено")
         delete_all()
         mg.showinfo("Автоудаление", "Все данные удалены")
         update_combobox_date()
         selected_sort(combobox.get())
-    else: print(f"Настройки сохранены: удаление через {period.lower()}")
+    else:
+        save_auto_delete_settings(period)
+        print(f"Настройки сохранены: удаление через {period.lower()}")
 
 
 def stop_command():
@@ -152,15 +167,19 @@ def open_file():
         update_combobox_date()
         selected_sort("Все")
 
-def update_combobox_date():
+def update_combobox_date(target_date=None):
     try:
         new_dates = filters.date_filter()
-        current_value = date_combobox.get()
         date_combobox.configure(values=new_dates)
-        if current_value in new_dates:
-            date_combobox.set(current_value)
+
+        if target_date and target_date in new_dates:
+            date_combobox.set(target_date)
         else:
-            date_combobox.set("Все")
+            current_value = date_combobox.get()
+            if current_value in new_dates:
+                date_combobox.set(current_value)
+            else:
+                date_combobox.set("Все")
     except Exception as e:
         print(f"Ошибка обновления комбобокса: {e}")
 
@@ -188,7 +207,6 @@ def search_content(search, base_path):
 
 
 def run_search():
-    found_notes = []
     app.focus_set()
     query = word_filter.get().strip()
 
@@ -230,7 +248,7 @@ def run_search():
                 current_search_pos = highlight_end
 
 def save_folder():
-    file_path = os.path.join(config.root_folder, 'settings.json')
+    file_path = config.settings_path
     try:
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
@@ -245,7 +263,7 @@ def save_folder():
         print(f"Ошибка: {e}")
 
 def load_folder():
-    file_path = os.path.join(config.root_folder, 'settings.json')
+    file_path = config.settings_path
     try:
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
@@ -266,7 +284,7 @@ choices = {
         "Закрепленные": lambda: filters.show_pinned(list_of_text, date_combobox)}
 
 def load_color():
-    file_path = os.path.join(config.root_folder, 'settings.json')
+    file_path = config.settings_path
     try:
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
@@ -303,9 +321,8 @@ def update_button_colors(wind_object):
                                dropdown_fg_color=wind_object.lighten_color(0.2), dropdown_hover_color=light_color,
                                dropdown_text_color=wind_object.lighten_color(-0.3), text_color= wind_object.lighten_color(-0.5))
             list_of_text.configure(bg=wind_object.lighten_color(0.2),fg=wind_object.lighten_color(-0.4),insertbackground=wind_object.lighten_color(-0.4))
-            name.configure(bg = config.background_color, fg = wind_object.lighten_color(-0.5))
             word_filter.configure(fg_color=light_color, placeholder_text_color =wind_object.lighten_color(-0.5),
-                                  border_color=dark_color)
+                                  border_color=dark_color, text_color=wind_object.lighten_color(-0.5))
             find_words_btn.configure(fg_color=dark_color, hover_color= wind_object.lighten_color(-0.3)),
             data.configure(fg_color = config.background_color, text_color= wind_object.lighten_color(-0.5)),
             type_label.configure(fg_color=config.background_color, text_color= wind_object.lighten_color(-0.5))
@@ -319,13 +336,47 @@ def update_button_colors(wind_object):
             )
             text_container.configure(fg_color=light_color,border_color=wind_object.lighten_color(-0.3),)
 
+def add_to_startup():
+    import sys
+    path = os.path.realpath(sys.argv[0])
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE)
+        winreg.SetValueEx(key, "Clipy", 0, winreg.REG_SZ, path)
+        winreg.CloseKey(key)
+    except Exception as e:
+        print(f"Ошибка автозагрузки: {e}")
+
+def show_window(icon, item=None):
+    icon.stop()
+    app.after(0, app.deiconify)
+    app.after(0, app.focus_force)
+
+
+def hide_to_tray():
+    app.withdraw()
+    icon_image = Image.open(get_path("clipy.ico"))
+    menu = TrayMenu(
+        TrayMenuItem("Развернуть", show_window),
+        TrayMenuItem("Выход", lambda icon, item: main_wind.quit_app())
+    )
+
+    icon = Icon("Clipy", icon_image, "Менеджер буфера Clipy", menu)
+    threading.Thread(target=icon.run, daemon=True).start()
+
 def setup():
     global app, list_of_text, word_filter, date_combobox, combobox, stop_button, \
         clipboard_thread, open_folder_btn, name, main_wind, find_words_btn, data, type_label, search_label, input_frame, \
         type_frame, date_frame, search_frame, text_scrollbar, text_container
     app = tk.Tk()
-    app.title("Буфер обмена")
+    app.title("Clipy")
     app.geometry("650x650")
+    try:
+        icon_path = get_path("clipy.ico")
+        app.iconbitmap(icon_path)
+    except Exception as e:
+        print(f"Иконка не найдена")
+
     main_wind = setting(app)
     load_color()
 
@@ -340,10 +391,6 @@ def setup():
     app.geometry(f'+{w // 2 - width_root // 2}+{h // 2 - height_root // 2}')
 
     app.resizable(False, False)
-    name = tk.Label(app, text = "Это программа для сохранения ваших скопированных данных",
-             font = ('Comic Sans MS', 12), fg = 'black')
-    name.pack()
-
     combobox_frame = ctk.CTkFrame(app, fg_color="transparent")
     combobox_frame.pack(padx=10, fill='x', pady=5)
 
@@ -363,14 +410,16 @@ def setup():
 
     data = ctk.CTkLabel(date_frame, text="Дата", font=('Comic Sans MS', 13), anchor="w")
     data.pack(fill='x')
-    date_combobox = ctk.CTkComboBox(date_frame, values=filters.date_filter(),
+    load_folder()
+    actual_dates = filters.date_filter()
+    date_combobox = ctk.CTkComboBox(date_frame, values=actual_dates,
                                     font=('Comic Sans MS', 15), dropdown_font=('Comic Sans MS', 13), state="readonly",
                                     width=150, command=lambda choice: selected_sort(combobox.get()))
     date_combobox.pack()
 
     today_date = str(date.today())
     date_combobox.set(today_date)
-    if today_date in filters.date_filter():
+    if today_date in actual_dates:
         date_combobox.set(today_date)
     else:
         date_combobox.set("Все")
@@ -383,7 +432,7 @@ def setup():
     input_frame.pack()
 
     word_filter = ctk.CTkEntry(input_frame, width=250, height=30, placeholder_text= "Поиск",
-                               font=('Comic Sans MS', 13))
+                               font=('Comic Sans MS', 15))
     word_filter.pack(side='left', padx=(0, 5))
 
     find_words_btn = ctk.CTkButton(input_frame, text="🔍", height=30, width=30,
@@ -459,6 +508,7 @@ def setup():
             pass
 
 
+
     context_menu = tk.Menu(app, tearoff=0)
     context_menu.add_command(label="Копировать", command=copy_text)
 
@@ -468,9 +518,9 @@ def setup():
 
     check_auto_delete()
 
-    main_menu = Menu()
-    file_menu = Menu()
-    settings_menu = Menu()
+    main_menu = tk.Menu(app)
+    file_menu = tk.Menu(main_menu, tearoff=0)
+    settings_menu = tk.Menu(file_menu, tearoff=0)
 
     file_menu.add_command(label = "Цветовая тема", command= main_wind.color_choose)
     settings_menu.add_command(label="Удалить сейчас", command=lambda: auto_delete_callback("Сейчас"))
@@ -480,21 +530,37 @@ def setup():
     settings_menu.add_command(label="Год", command=lambda: auto_delete_callback("Год"))
     file_menu.add_cascade(label="Настройки автоудаления", menu = settings_menu)
 
+    file_menu.add_command(label="Завершение программы", command= main_wind.quit_app)
     file_menu.add_separator()
-    file_menu.add_command(label="Выход", command= main_wind.quit_app)
+    file_menu.add_command(label=
+    "О программе", command=lambda: mg.showinfo("Clipy",
+    "Программа для автоматического сохранения истории буфера обмена.\nЕсли окно закрыто — открывать в трее"
+    "\nВерсия 1.0"))
     main_menu.add_cascade(label = "Настройки", menu=file_menu)
     app.config(menu= main_menu)
 
     if config.background_color:
         load_color()
 
-    selected_sort("Все")
+
+    selected_sort(combobox.get())
     clipboard_thread = start_monitoring(app, selected_sort, combobox)
-    app.protocol("WM_DELETE_WINDOW", close_command)
+    app.protocol("WM_DELETE_WINDOW", hide_to_tray)
 
 def run_app():
-    setup()
+    try:
+        global lock_socket
+        lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        lock_socket.bind(('127.0.0.1', 65432))
+    except socket.error:
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showinfo("Clipy", "Приложение уже запущено и работает в системном трее")
+        root.destroy()
+        sys.exit()
     load_folder()
-    filters.create_json()
     monitoring_clipboard.create_folder_for_days()
+    filters.create_json()
+    setup()
+    add_to_startup()
     app.mainloop()
