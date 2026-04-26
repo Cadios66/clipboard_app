@@ -111,7 +111,9 @@ def check_clipboard(app, selected_sort, combobox):
                     if isinstance(img_init, Image.Image):
                         buf = io.BytesIO()
                         img_init.save(buf, format='PNG')
-                        last_image_hash = hashlib.md5(buf.getvalue()).hexdigest()
+                        init_hash = hashlib.md5(buf.getvalue()).hexdigest()
+                        last_image_hash =init_hash
+                        config.image_hashes.add(init_hash)
                 except:
                     pass
                 was_monitoring_last_state = True
