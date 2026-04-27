@@ -17,7 +17,8 @@
 
 ## Технический стек
 * Python 3.14
-  
+
+### Библиотеки
 * Внешние: Pillow (PIL), CustomTkinter (ctk), PyWin32 (win32clipboard, winreg), Pystray
 
 * Встроенные: tkinter, os, sys, shutil, datetime (date, timedelta), threading, hashlib, json, io, math, time, colorsys, socket 
